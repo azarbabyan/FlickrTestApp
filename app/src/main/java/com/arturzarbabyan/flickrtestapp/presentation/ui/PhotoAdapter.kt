@@ -9,8 +9,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.arturzarbabyan.flickrtestapp.R
 import com.arturzarbabyan.flickrtestapp.domain.model.Photo
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 
-class PhotoAdapter(private val photos: List<Photo>, private val onClick: (Photo) -> Unit) :
+class PhotoAdapter(private val photos: List<Photo>,
+                   private val onClick: (Photo, ImageView) -> Unit
+) :
     RecyclerView.Adapter<PhotoAdapter.PhotoViewHolder>() {
 
     class PhotoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -42,10 +45,16 @@ class PhotoAdapter(private val photos: List<Photo>, private val onClick: (Photo)
             .load(photo.getImageUrl())
             .placeholder(R.drawable.placeholder)
             .error(R.drawable.placeholder)
+            .diskCacheStrategy(DiskCacheStrategy.ALL)
             .centerCrop()
             .into(holder.imgThumbnail)
 
-        holder.itemView.setOnClickListener { onClick(photo) }
+        holder.itemView.setOnClickListener {
+            it.animate().scaleX(1.1f).scaleY(1.1f).setDuration(150).withEndAction {
+                it.animate().scaleX(1f).scaleY(1f).setDuration(150)
+            }
+            onClick(photo, holder.imgThumbnail)
+        }
     }
 
     override fun getItemCount() = photos.size

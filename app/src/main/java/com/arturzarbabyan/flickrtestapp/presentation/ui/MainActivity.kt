@@ -3,17 +3,29 @@ package com.arturzarbabyan.flickrtestapp.presentation.ui
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.view.View
+import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityOptionsCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.GridLayoutManager
+import com.arturzarbabyan.flickrtestapp.R
 import com.arturzarbabyan.flickrtestapp.databinding.ActivityMainBinding
 import com.arturzarbabyan.flickrtestapp.domain.model.Photo
 import com.arturzarbabyan.flickrtestapp.presentation.viewmodel.PhotoViewModel
+import com.arturzarbabyan.flickrtestapp.utils.NetworkUtils
+import com.bumptech.glide.Glide
+import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -21,11 +33,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: PhotoViewModel by viewModels()
     private lateinit var adapter: PhotoAdapter
+    private lateinit var shimmerAdapter: ShimmerAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        cleanUpOldCache()
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(getColor(android.R.color.transparent), getColor(android.R.color.transparent)),
             navigationBarStyle = SystemBarStyle.light(getColor(android.R.color.transparent), getColor(android.R.color.transparent))
@@ -35,9 +49,9 @@ class MainActivity : AppCompatActivity() {
             binding.root.setPadding(0, systemBars.top, 0, systemBars.bottom)
             insets
         }
-
-       setupRecyclerView()
-
+        checkInternetAndShowSnackbar()
+        setupRecyclerView()
+        showShimmerEffect()
 
         if (savedInstanceState != null) {
             val savedPhotos = savedInstanceState.getParcelableArrayList<Photo>("photos")
@@ -49,19 +63,69 @@ class MainActivity : AppCompatActivity() {
         }
 
         viewModel.photos.observe(this) { photos ->
-            adapter = PhotoAdapter(photos) { photo ->
-                val intent = Intent(this, PhotoDetailActivity::class.java)
-                intent.putExtra("photoUrl", photo.getImageUrl())
-                startActivity(intent)
+            if (photos.isNotEmpty()){
+                hideShimmerEffect()
+                adapter = PhotoAdapter(photos) { photo,imageView ->
+                    val intent = Intent(this, PhotoDetailActivity::class.java)
+                    intent.putExtra("photoUrl", photo.getImageUrl())
+                    val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                        this,
+                        imageView,
+                        "photo_transition" // This must match android:transitionName in XML
+                    )
+                    startActivity(intent)
+                }
+                binding.recyclerView.adapter = adapter
             }
-            binding.recyclerView.adapter = adapter
-        }
+            }
+
 
         binding.btnRefresh.setOnClickListener {
-            viewModel.loadPhotos(forceRefresh = true)
+            if (!NetworkUtils.isInternetAvailable(this)) {
+                Toast.makeText(this, "No Internet Connection. Showing cached photos.", Toast.LENGTH_SHORT).show()
+            }else{
+                showShimmerEffect()
+                Glide.get(this).clearDiskCache() // ✅ Clears old cache
+                Glide.get(this).clearMemory()
+                viewModel.loadPhotos(forceRefresh = true)
+            }
+
+        }
+
+        binding.swipeRefreshLayout.setOnRefreshListener {
+            if (!NetworkUtils.isInternetAvailable(this)) {
+                Toast.makeText(this, "No Internet Connection. Showing cached photos.", Toast.LENGTH_SHORT).show()
+            }else{
+                showShimmerEffect()
+                Glide.get(this).clearDiskCache() // ✅ Clears old cache
+                Glide.get(this).clearMemory()
+                viewModel.loadPhotos(forceRefresh = true)
+            }
+            binding.swipeRefreshLayout.isRefreshing = false
         }
 
 
+    }
+
+    private fun checkInternetAndShowSnackbar() {
+        if (!NetworkUtils.isInternetAvailable(this)) {
+            Snackbar.make(binding.root, "No Internet. Showing cached data.", Snackbar.LENGTH_LONG)
+                .setBackgroundTint(ContextCompat.getColor(this, R.color.error_red))
+                .setTextColor(ContextCompat.getColor(this, R.color.white))
+                .show()
+        }
+    }
+
+    private fun showShimmerEffect() {
+        binding.shimmerViewContainer.visibility = View.VISIBLE
+        binding.recyclerView.visibility = View.GONE
+        binding.shimmerViewContainer.startShimmer()
+    }
+
+    private fun hideShimmerEffect() {
+        binding.shimmerViewContainer.stopShimmer()
+        binding.shimmerViewContainer.visibility = View.GONE
+        binding.recyclerView.visibility = View.VISIBLE
     }
 
     private fun setupRecyclerView() {
@@ -81,6 +145,20 @@ class MainActivity : AppCompatActivity() {
 
         binding.recyclerView.layoutManager = GridLayoutManager(this, spanCount)
         binding.recyclerView.addItemDecoration(GridSpacingItemDecoration(spanCount, spacing, true))
+        val animator = DefaultItemAnimator()
+        animator.addDuration = 300
+        animator.removeDuration = 300
+        binding.recyclerView.itemAnimator = animator
+        binding.shimmerRecyclerView.layoutManager = GridLayoutManager(this, spanCount)
+        binding.shimmerRecyclerView.addItemDecoration(GridSpacingItemDecoration(spanCount, spacing, true))
+        shimmerAdapter = ShimmerAdapter(20)
+        binding.shimmerRecyclerView.adapter = shimmerAdapter
+    }
+
+    private fun cleanUpOldCache() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            Glide.get(applicationContext).clearDiskCache()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

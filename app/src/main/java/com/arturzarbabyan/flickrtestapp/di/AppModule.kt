@@ -51,8 +51,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun providePhotoRepository(api: FlickrApi, photoDao: PhotoDao): PhotoRepository {
-        return PhotoRepository(api, photoDao)
+    fun providePhotoRepository(api: FlickrApi, photoDao: PhotoDao,@ApplicationContext context: Context): PhotoRepository {
+        return PhotoRepository(api, photoDao,context)
     }
 
     @Provides

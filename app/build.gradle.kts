@@ -67,6 +67,7 @@ dependencies {
     implementation(libs.retrofit)
 
     implementation(libs.glide)
+    implementation(libs.androidx.swiperefreshlayout)
     kapt(libs.compiler)
 
     implementation(libs.androidx.room.runtime)
@@ -78,6 +79,8 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.android.compiler)
 
+
+    implementation(libs.shimmer)
 
 
 
