@@ -5,16 +5,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.arturzarbabyan.flickrtestapp.R
 import com.arturzarbabyan.flickrtestapp.domain.model.Photo
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 
-class PhotoAdapter(private val photos: List<Photo>,
-                   private val onClick: (Photo, ImageView) -> Unit
-) :
-    RecyclerView.Adapter<PhotoAdapter.PhotoViewHolder>() {
+class PhotoAdapter(private val onClick: (Photo, ImageView) -> Unit
+) : ListAdapter<Photo, PhotoAdapter.PhotoViewHolder>(PhotoDiffCallback()) {
 
     class PhotoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imgThumbnail: ImageView = view.findViewById(R.id.imgThumbnail)
@@ -40,7 +39,7 @@ class PhotoAdapter(private val photos: List<Photo>,
     }
 
     override fun onBindViewHolder(holder: PhotoViewHolder, position: Int) {
-        val photo = photos[position]
+        val photo = getItem(position)
         Glide.with(holder.imgThumbnail.context)
             .load(photo.getImageUrl())
             .placeholder(R.drawable.placeholder)
@@ -57,5 +56,4 @@ class PhotoAdapter(private val photos: List<Photo>,
         }
     }
 
-    override fun getItemCount() = photos.size
 }

@@ -39,7 +39,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        cleanUpOldCache()
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(getColor(android.R.color.transparent), getColor(android.R.color.transparent)),
             navigationBarStyle = SystemBarStyle.light(getColor(android.R.color.transparent), getColor(android.R.color.transparent))
@@ -65,16 +64,7 @@ class MainActivity : AppCompatActivity() {
         viewModel.photos.observe(this) { photos ->
             if (photos.isNotEmpty()){
                 hideShimmerEffect()
-                adapter = PhotoAdapter(photos) { photo,imageView ->
-                    val intent = Intent(this, PhotoDetailActivity::class.java)
-                    intent.putExtra("photoUrl", photo.getImageUrl())
-                    val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
-                        this,
-                        imageView,
-                        "photo_transition" // This must match android:transitionName in XML
-                    )
-                    startActivity(intent)
-                }
+                adapter.submitList(photos)
                 binding.recyclerView.adapter = adapter
             }
             }
@@ -85,8 +75,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "No Internet Connection. Showing cached photos.", Toast.LENGTH_SHORT).show()
             }else{
                 showShimmerEffect()
-                Glide.get(this).clearDiskCache() // ✅ Clears old cache
-                Glide.get(this).clearMemory()
+                cleanUpOldCache()
                 viewModel.loadPhotos(forceRefresh = true)
             }
 
@@ -97,8 +86,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "No Internet Connection. Showing cached photos.", Toast.LENGTH_SHORT).show()
             }else{
                 showShimmerEffect()
-                Glide.get(this).clearDiskCache() // ✅ Clears old cache
-                Glide.get(this).clearMemory()
+                cleanUpOldCache()
                 viewModel.loadPhotos(forceRefresh = true)
             }
             binding.swipeRefreshLayout.isRefreshing = false
@@ -129,6 +117,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
+        adapter = PhotoAdapter { photo,imageView ->
+            val intent = Intent(this, PhotoDetailActivity::class.java)
+            intent.putExtra("photoUrl", photo.getImageUrl())
+            val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                this,
+                imageView,
+                "photo_transition"
+            )
+            startActivity(intent)
+        }
         val spanCount: Int
         val margin: Int
         val screenWidth = resources.displayMetrics.widthPixels
@@ -159,6 +157,8 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             Glide.get(applicationContext).clearDiskCache()
         }
+        Glide.get(applicationContext).clearMemory()
+
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

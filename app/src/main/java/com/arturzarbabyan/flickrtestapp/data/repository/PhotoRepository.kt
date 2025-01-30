@@ -16,7 +16,7 @@ class PhotoRepository @Inject constructor(
 ) {
     suspend fun getPhotos(forceRefresh: Boolean): List<Photo> = withContext(Dispatchers.IO) {
         if (!NetworkUtils.isInternetAvailable(context)) {
-            return@withContext photoDao.getAllPhotos() // Load from local DB if offline
+            return@withContext photoDao.getAllPhotos()
         }
         if (forceRefresh || photoDao.getAllPhotos().isEmpty()) {
             val response = api.getRecentPhotos()
